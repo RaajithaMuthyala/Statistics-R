@@ -1,0 +1,479 @@
+
+```{r}
+# import dataset in to R
+library(readr)
+kidney_disease <- read_csv("C:/Users/eshan/Downloads/kidney_disease.csv")
+```
+
+
+```{r}
+# view dataset after importing dataset
+View(kidney_disease)
+```
+
+```{r}
+# dimension of the dataset
+dim(kidney_disease)
+
+# number of rows and columns
+nrow(kidney_disease)
+ncol(kidney_disease)
+```
+```{r}
+# overview of the variables
+str(kidney_disease)
+```
+```{r}
+# First 6 rows of the dataset
+head(kidney_disease)
+```
+```{r}
+#summary of the dataset
+summary(kidney_disease)
+```
+
+```{r}
+# total count of null values
+sum(is.na(kidney_disease))
+```
+```{r}
+# null values per column
+colSums(is.na(kidney_disease))
+```
+
+```{r}
+library(readr)
+kidney_disease_cleaned <- read_csv("C:/Users/eshan/Downloads/kidney_disease_cleaned.csv")
+View(kidney_disease_cleaned)
+```
+
+```{r}
+# overview of the variables
+str(kidney_disease_cleaned)
+```
+```{r}
+#changing data type
+library(dplyr)
+
+# Assuming 'df' is your data frame
+kidney_disease_cleaned <- kidney_disease_cleaned %>%
+  mutate(across(c(id, age, bp, sg, al, su, bgr, bu, sc, sod, pot, hemo), as.numeric),
+         across(c(rbc, pc, pcc, ba, htn, dm, cad, appet, pe, ane, classification), as.factor))
+
+str(kidney_disease_cleaned)
+```
+```{r}
+#summary of the dataset
+summary(kidney_disease_cleaned)
+```
+
+
+```{r}
+# checking for outlier detection
+# Filter numeric columns
+numeric_data <- kidney_disease_cleaned[sapply(kidney_disease_cleaned, is.numeric)]
+
+# Check for outliers in numeric columns and get outlier indices
+outlier_counts <- sapply(numeric_data, function(x) {
+  iqr <- IQR(x)
+  lower_bound <- quantile(x, 0.25) - 1.5 * iqr
+  upper_bound <- quantile(x, 0.75) + 1.5 * iqr
+  outliers <- x < lower_bound | x > upper_bound
+  outlier_count <- sum(outliers, na.rm = TRUE)
+  return(outlier_count)
+})
+
+# Print outlier count for each numeric column
+print("Outlier count for each numeric column:")
+print(outlier_counts)
+print(sum(outlier_counts))
+```
+```{r}
+#data visualization for outliers
+# Select specific columns for box plots
+columns_to_plot <- c("age", "bp", "sg", "al", "su", "bgr", "bu", "sc", "sod", "pot", "hemo", "pcv", "wc", "rc")
+
+# Create a list to store the box plot data
+box_plot_data <- lapply(columns_to_plot, function(col) kidney_disease_cleaned[[col]])
+names(box_plot_data) <- columns_to_plot
+
+
+# Create box plots
+for (col in columns_to_plot) {
+  boxplot(kidney_disease_cleaned[[col]], main = col, ylab = "Value")
+}
+
+```
+
+```{r}
+# Checking for outlier detection with winsorization
+library(dplyr)
+
+# Function to perform winsorization on a vector
+winsorize <- function(x, p_low = 0.05, p_high = 0.95) {
+  lower_bound <- quantile(x, p_low)
+  upper_bound <- quantile(x, p_high)
+  x[x < lower_bound] <- lower_bound
+  x[x > upper_bound] <- upper_bound
+  return(x)
+}
+
+# Apply winsorization to numeric columns
+winsorized_data <- numeric_data %>% 
+  mutate_all(winsorize)
+
+# Check for outliers in winsorized data and get outlier counts
+outlier_counts_winsorized <- sapply(winsorized_data, function(x) {
+  outliers <- x < quantile(x, 0.05) | x > quantile(x, 0.95)
+  outlier_count <- sum(outliers, na.rm = TRUE)
+  return(outlier_count)
+})
+
+# Print outlier count for each numeric column after winsorization
+print("Outlier count for each numeric column after winsorization:")
+print(outlier_counts_winsorized)
+print(sum(outlier_counts_winsorized))
+
+```
+
+
+
+```{r}
+# identification of outliers, replacing outliers with upper and lower bound
+
+# Function to perform winsorization on a vector
+winsorize_replace <- function(x, p_low = 0.05, p_high = 0.95) {
+  lower_bound <- quantile(x, p_low)
+  upper_bound <- quantile(x, p_high)
+  x[x < lower_bound] <- lower_bound
+  x[x > upper_bound] <- upper_bound
+  return(x)
+}
+
+# Apply winsorization and replacement to all numeric columns
+numeric_columns <- sapply(kidney_disease_cleaned, is.numeric)
+kidney_disease_cleaned[, numeric_columns] <- lapply(kidney_disease_cleaned[, numeric_columns], winsorize_replace)
+
+# Summary of the dataset after replacing outliers
+summary(kidney_disease_cleaned)
+
+```
+
+```{r}
+
+#data visualization for outliers
+
+# Select specific columns for box plots
+columns_to_plot <- c("age", "bp", "sg", "al", "su", "bgr", "bu", "sc", "sod", "pot", "hemo", "pcv", "wc", "rc")
+
+# Create a list to store the box plot data
+box_plot_data <- lapply(columns_to_plot, function(col) kidney_disease_cleaned[[col]])
+names(box_plot_data) <- columns_to_plot
+
+
+# Create box plots
+for (col in columns_to_plot) {
+  boxplot(kidney_disease_cleaned[[col]], main = col, ylab = "Value")
+}
+```
+
+
+```{r}
+numeric_columns <- c("id", "age", "bp", "sg", "al", "su", "bgr", "bu", "sc", "sod", "pot", "hemo")
+
+# Create scatter plots in a loop
+for (column in numeric_columns) {
+  # Create scatter plot
+  plot(kidney_disease_cleaned[[column]], 
+       main = paste("Scatter Plot of", column), 
+       xlab = "Index", 
+       ylab = column)
+  
+  # Add grid
+  grid()
+}
+
+```
+
+
+
+```{r}
+# Load necessary library
+library(ggplot2)
+
+# Plot histograms for numeric variables
+numeric_data <- subset(kidney_disease_cleaned, select = sapply(kidney_disease_cleaned, is.numeric))
+numeric_data_long <- tidyr::gather(numeric_data, key = "variable", value = "value")
+
+ggplot(numeric_data_long, aes(x = value)) +
+  geom_histogram(bins = 20, fill = "pink", color = "black") +
+  facet_wrap(~ variable, scales = "free") +
+  labs(title = "Histograms of Numeric Variables")
+```
+```{r}
+# Plot barplot for categorical variables
+# Identify categorical columns
+categorical_columns <- sapply(kidney_disease_cleaned, is.factor)
+
+# Extract categorical data
+categorical_data <- kidney_disease_cleaned[, categorical_columns]
+
+# Set margins to adjust plot size
+par(mar = c(5, 5, 2, 2))  # Set margins (bottom, left, top, right)
+
+# Plot bar plots for each categorical variable
+invisible(
+  lapply(names(categorical_data), function(col) {
+    barplot(table(categorical_data[[col]]), main = col, xlab = col, ylab = "Frequency", col = "skyblue", border = "darkblue", ylim = c(0, max(table(categorical_data[[col]])) + 5))
+  })
+)
+
+# Reset the layout to default
+par(mar = c(5, 4, 4, 2) + 0.1)  # Default margins
+
+```
+
+
+```{r}
+# corelation analysis between numerical variables and outcome
+
+# Load required libraries
+library(ggplot2)
+
+# Assuming 'kidney_disease_cleaned' is your dataset containing numerical variables and the 'classification' outcome
+
+# Select numerical variables
+numerical_vars <- kidney_disease_cleaned[, sapply(kidney_disease_cleaned, is.numeric)]
+
+# Remove variables with zero standard deviation
+numerical_vars <- numerical_vars[, apply(numerical_vars, 2, sd) != 0]
+
+# Calculate correlation between numerical variables and classification
+correlation_with_classification <- cor(numerical_vars, as.numeric(kidney_disease_cleaned$classification))
+
+# Print correlation result
+print(correlation_with_classification)
+
+```
+
+```{r}
+# Load required libraries
+library(ggplot2)
+
+# Assuming 'kidney_disease_cleaned' is your dataset containing numeric variables
+# Select numeric variables
+numeric_columns <- sapply(kidney_disease_cleaned, is.numeric)
+numeric_data <- kidney_disease_cleaned[, numeric_columns]
+numeric_data_target <- cbind(numeric_data, classification = as.numeric(kidney_disease_cleaned$classification))
+
+# Compute the correlation matrix
+correlation_matrix <- cor(numeric_data_with_target)
+
+# Convert the correlation matrix to a long format
+melted_corr <- as.data.frame(as.table(correlation_matrix))
+colnames(melted_corr) <- c("Var1", "Var2", "value")
+
+# Plot the heatmap
+ggplot(data = melted_corr, aes(x = Var1, y = Var2, fill = value)) +
+ geom_tile() +
+  geom_text(aes(label = round(value, 2)), color = "black", size = 3) +  # Add correlation values
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", midpoint = 0, limits = c(-1, 1), name = "Correlation") +
+  theme_minimal() +
+  labs(title = "Correlation Heatmap of Numeric Variables",
+       x = "", y = "") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+```
+
+
+```{r}
+# List of categorical variables (replace with your actual variable names)
+categorical_vars <- c("htn", "dm", "cad", "appet", "pe", "ane", "su", "rbc", "pc","pcc", "ba")
+
+# Loop through each categorical variable
+for (var in categorical_vars) {
+  # Create contingency table
+  contingency_table <- table(kidney_disease_cleaned[[var]], kidney_disease_cleaned$classification)
+  
+  # Perform chi-square test
+  chi_square_result <- chisq.test(contingency_table)
+  
+  # Print variable name and chi-square test result
+  cat("Chi-square test for", var, "vs. CKD status:\n")
+  print(chi_square_result)
+  cat("\n")
+}
+```
+
+```{r}
+# data visualization for categorical variable with classification
+
+# Load required libraries
+library(ggplot2)
+
+# List of categorical variables (replace with your actual variable names)
+categorical_vars <- c("htn", "dm", "cad", "appet", "pe", "ane", "rbc", "pc", "pcc", "ba")
+
+# Create an empty data frame to store the results
+chi_square_results <- data.frame(Variable = character(), ChiSquareStatistic = numeric(), p_value = numeric())
+
+# Loop through each categorical variable
+for (var in categorical_vars) {
+  # Perform chi-square test
+  chi_square_result <- chisq.test(table(kidney_disease_cleaned[[var]], kidney_disease_cleaned$classification))
+  
+  # Store variable name, chi-square test statistic, and p-value in the data frame
+  chi_square_results <- rbind(chi_square_results, data.frame(Variable = var, ChiSquareStatistic = chi_square_result$statistic, p_value = chi_square_result$p.value))
+}
+
+# Order the data frame by ChiSquareStatistic in descending order
+chi_square_results <- chi_square_results[order(-chi_square_results$ChiSquareStatistic), ]
+
+# Plot bar plot with color gradient
+ggplot(chi_square_results, aes(x = reorder(Variable, -ChiSquareStatistic), y = ChiSquareStatistic, fill = ChiSquareStatistic)) +
+  geom_bar(stat = "identity") +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  labs(x = "Categorical Variable", y = "Chi-Square Test Statistic", title = "Association with Classification Outcome") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+```
+
+
+```{r}
+# normality testing
+
+# Load necessary library
+library(dplyr)
+
+# Filter out variables with no variability
+numeric_data_filtered <- select_if(numeric_data, function(x) length(unique(x)) > 1)
+
+# Perform Shapiro-Wilk test for each numerical variable
+shapiro_results <- lapply(numeric_data_filtered, shapiro.test)
+
+# Combine results into a data frame
+shapiro_df <- bind_rows(lapply(names(shapiro_results), function(var) {
+  data.frame(variable = var,
+             statistic = shapiro_results[[var]]$statistic,
+             p.value = shapiro_results[[var]]$p.value,
+             stringsAsFactors = FALSE)
+}))
+
+# Print results
+print(shapiro_df)
+```
+
+
+```{r}
+#data visualization after log transformation
+library(ggplot2)
+library(tidyr)
+
+# Select only numeric variables
+numeric_data <- kidney_disease_cleaned %>%
+  select_if(is.numeric)
+
+# Log transformation for numeric variables
+numeric_data_log <- log(numeric_data + 1)  # Adding 1 to avoid log(0)
+
+# Prepare data for plotting
+log_data_long <- tidyr::gather(numeric_data_log, key = "variable", value = "value")
+
+# Plot histograms of log-transformed numeric variables
+ggplot(log_data_long, aes(x = value)) +
+  geom_histogram(bins = 20, fill = "pink", color = "black") +
+  facet_wrap(~ variable, scales = "free") +
+  labs(title = "Histograms of Log-Transformed Numeric Variables")
+
+```
+
+## Research  Question 1:What is the association between blood glucose levels (bgr) and blood urea levels (bu) with chronic kidney disease?
+
+Hypothesis Testing:
+
+Null Hypothesis (H0): There is no significant association between blood glucose levels (bgr) and blood urea levels (bu) with chronic kidney disease.
+
+Alternative Hypothesis (H1): There is a significant association between blood glucose levels (bgr) and blood urea levels (bu) with chronic kidney disease.
+
+
+```{r}
+correlation_coefficient <- cor(kidney_disease_cleaned$bgr, kidney_disease_cleaned$bu, method = "spearman")
+
+# Print the correlation coefficient
+print(correlation_coefficient)
+
+```
+Analysis of correlation: Spearman correlation measures the strength and direction of association between two ranked variables, a value of 0.2236 indicates a positive association, meaning that higher values of bgr tend to be associated with higher values of bu, and vice versa. However, the correlation is considered weak, suggesting that the relationship between these variables is not very strong.
+
+```{r}
+# Load necessary library
+library(ggplot2)
+
+# Scatter plot for bu and bgr
+ggplot(kidney_disease_cleaned, aes(x = bu, y = bgr)) +
+  geom_point() +
+  labs(x = "Blood Urea", y = "Blood Glucose Random", title = "Scatter Plot of Blood Urea vs Blood Glucose Random")
+
+```
+
+```{r}
+# Fit logistic regression model
+logistic_model <- glm(classification ~ bgr + bu, data = kidney_disease_cleaned, family = binomial(link = "logit"))
+
+# Summarize the model
+summary(logistic_model)
+
+library(car)
+vif_values <- vif(logistic_model)
+vif_values
+```
+Analysis of Logistic regression:
+
+The logistic regression model reveals that for each unit increase in blood glucose levels (bgr), the log odds of chronic kidney disease increase by approximately 0.038 (p < 0.001). Similarly, for each unit increase in blood urea levels (bu), the log odds of chronic kidney disease increase by approximately 0.053 (p < 0.001). The intercept of -6.357 (p < 0.001) represents the log odds of chronic kidney disease when both bgr and bu are zero. The model's null deviance is 529.25 on 399 degrees of freedom, and the residual deviance is 374.64 on 397 degrees of freedom, with a dispersion parameter of 1. AIC for the model is 380.64.
+
+
+
+## Research Question 2: What is the association between bacteria (ba) and hypertension (htn) with chronic kidney disease?
+
+
+Null Hypothesis (H0): There is no significant association between ba and htn with chronic kidney disease.
+
+Alternative Hypothesis (H1): There is a significant association between ba and htn with chronic kidney disease.
+
+
+
+```{r}
+# Chi square test for checking independence
+chisq.test(kidney_disease_cleaned$htn, kidney_disease_cleaned$ba)
+```
+
+
+```{r}
+# Fit logistic regression model
+logistic_model <- glm(classification ~ htn+ba, data = kidney_disease_cleaned, family = binomial(link = "logit"))
+
+# Summarize the model
+summary(logistic_model)
+```
+
+Analysis of Logistic Regression:
+
+In the logistic regression model fitted to predict the classification outcome, the intercept is estimated to be -39.12. This implies that when all predictor variables, namely hypertension (htn) and blood albumin (ba), are zero, the log-odds of the outcome is expected to be approximately -39.12. However, both the htn and ba variables exhibit coefficients with p-values greater than 0.05 (0.982 and 0.992, respectively), indicating that they are not statistically significant predictors of the outcome. Specifically, for every one-unit increase in htn, the log-odds of the outcome are expected to increase by 19.90, while for every one-unit increase in ba, the log-odds of the outcome are expected to increase by 18.74. However, due to their high p-values, these relationships are not deemed statistically significant. Therefore, based on this model, neither hypertension nor blood albumin is considered a significant predictor of the classification outcome.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
